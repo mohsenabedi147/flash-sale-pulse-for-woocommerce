@@ -1,0 +1,58 @@
+.spw-admin-wrap {
+	direction: rtl;
+	text-align: right;
+	font-family: Tahoma, Arial, sans-serif;
+}
+
+.spw-admin-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-right: 4px solid #2271b1;
+	padding: 16px 20px;
+	margin: 16px 0;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.spw-tabs {
+	margin-top: 20px;
+	border-bottom: 1px solid #ccd0d4;
+}
+
+.spw-tab-link {
+	display: inline-block;
+	padding: 10px 16px;
+	background: #f0f0f1;
+	border: 1px solid #ccd0d4;
+	border-bottom: none;
+	text-decoration: none;
+	color: #1d2327;
+	margin-left: 4px;
+}
+
+.spw-tab-link.is-active {
+	background: #fff;
+	color: #2271b1;
+	font-weight: 700;
+}
+
+.spw-tab-content {
+	display: none;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-top: none;
+	padding: 20px;
+}
+
+.spw-tab-content.is-active {
+	display: block;
+}
+
+.spw-product-fields {
+	direction: rtl;
+	text-align: right;
+	padding: 12px 0;
+}
+
+.spw-help-text {
+	color: #646970;
+}
