@@ -1,3 +1,4 @@
+/* تنظیمات کلی پنل ادمین */
 .spw-admin-wrap {
 	direction: rtl;
 	text-align: right;
@@ -13,6 +14,7 @@
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
+/* سیستم تب‌بندی */
 .spw-tabs {
 	margin-top: 20px;
 	border-bottom: 1px solid #ccd0d4;
@@ -47,12 +49,66 @@
 	display: block;
 }
 
+/* فیلدهای محصول و باکس اختصاصی نبض حراجی */
 .spw-product-fields {
 	direction: rtl;
 	text-align: right;
 	padding: 12px 0;
 }
 
+.spw-sale-box {
+	background: #f0f8ff;
+	border-top: 2px solid #2271b1;
+	border-bottom: 1px solid #d1e4f3;
+	padding: 15px !important;
+	margin-top: 10px;
+}
+
+.spw-sale-box-title {
+	margin-bottom: 15px !important;
+	color: #135e96;
+}
+
+.spw-sale-row {
+	display: flex;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.spw-sale-row label {
+	width: 150px;
+	font-weight: 600;
+}
+
+.spw-sale-inputs {
+	display: flex;
+	gap: 10px;
+	direction: ltr;
+}
+
+.spw-sale-inputs input {
+	text-align: center;
+	font-family: monospace;
+}
+
+.spw-date-input {
+	width: 110px !important;
+}
+
+.spw-time-input {
+	width: 70px !important;
+}
+
 .spw-help-text {
 	color: #646970;
+	margin-top: 15px !important;
+	font-style: italic;
+}
+
+/* لیست شورت‌کدها */
+.spw-shortcode-list code {
+    display: block;
+    margin: 10px 0;
+    padding: 8px;
+    background: #f6f7f7;
 }
