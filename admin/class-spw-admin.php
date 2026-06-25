@@ -1,158 +1,238 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
+/**
+ * مدیریت پنل و فیلدهای محصول افزونه.
+ */
 class SPW_Admin {
-    protected $sale_service;
 
-    public function __construct( $sale_service ) {
-        $this->sale_service = $sale_service;
-    }
+	protected $sale_service;
 
-    public function hooks() {
-        add_action( 'admin_menu', array( $this, 'register_menu' ), 99 );
-        add_action( 'admin_init', array( $this, 'register_settings' ) );
-        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-        add_action( 'woocommerce_product_options_pricing', array( $this, 'add_product_fields' ) );
-        add_action( 'woocommerce_admin_process_product_object', array( $this, 'save_product_fields' ) );
-    }
+	public function __construct( $sale_service ) {
+		$this->sale_service = $sale_service;
+	}
 
-    public function enqueue_admin_assets( $hook ) {
-        if ( 'woocommerce_page_spw-settings' !== $hook && 'post.php' !== $hook && 'post-new.php' !== $hook ) {
-            return;
-        }
-        wp_enqueue_style( 'spw-admin-style', SPW_PLUGIN_URL . 'assets/css/spw-admin.css', array(), SPW_VERSION );
-        wp_enqueue_script( 'spw-admin-script', SPW_PLUGIN_URL . 'assets/js/spw-admin.js', array( 'jquery' ), SPW_VERSION, true );
-    }
+	public function hooks() {
+		add_action( 'admin_menu', array( $this, 'register_menu' ), 99 );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+		add_action( 'woocommerce_product_options_pricing', array( $this, 'add_product_fields' ) );
+		add_action( 'woocommerce_admin_process_product_object', array( $this, 'save_product_fields' ) );
+	}
 
-    public function register_menu() {
-        add_submenu_page(
-            'woocommerce',
-            __( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ),
-            __( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ),
-            'manage_woocommerce',
-            'spw-settings',
-            array( $this, 'render_settings_page' )
-        );
-    }
+	public function enqueue_admin_assets( $hook ) {
+		$screen = get_current_screen();
 
-    public function register_settings() {
-        register_setting( 'spw_settings_group', 'spw_settings', array( $this, 'sanitize_settings' ) );
-    }
+		if ( 'woocommerce_page_spw-settings' !== $hook && ( ! $screen || 'product' !== $screen->post_type ) ) {
+			return;
+		}
 
-    public function sanitize_settings( $input ) {
-        $defaults = SPW_Helpers::get_settings();
-        $output = array();
+		wp_enqueue_style(
+			'spw-admin',
+			SPW_PLUGIN_URL . 'assets/css/spw-admin.css',
+			array(),
+			SPW_VERSION
+		);
 
-        $output['timer_title'] = sanitize_text_field( $input['timer_title'] ?? $defaults['timer_title'] );
-        $output['button_text'] = sanitize_text_field( $input['button_text'] ?? $defaults['button_text'] );
-        $output['products_per_page'] = absint( $input['products_per_page'] ?? $defaults['products_per_page'] );
-        $output['cleanup_batch'] = absint( $input['cleanup_batch'] ?? $defaults['cleanup_batch'] );
-        
-        $allowed_orderby = array( 'ending_soon', 'date', 'title' );
-        $output['default_orderby'] = in_array( $input['default_orderby'], $allowed_orderby ) ? $input['default_orderby'] : $defaults['default_orderby'];
+		wp_enqueue_script(
+			'spw-admin',
+			SPW_PLUGIN_URL . 'assets/js/spw-admin.js',
+			array( 'jquery' ),
+			SPW_VERSION,
+			true
+		);
+	}
 
-        $output['hide_oos'] = 'yes';
-        $output['db_version'] = SPW_DB_VERSION;
+	public function register_menu() {
+		add_submenu_page(
+			'woocommerce',
+			__( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ),
+			__( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ),
+			'manage_woocommerce',
+			'spw-settings',
+			array( $this, 'render_settings_page' )
+		);
+	}
 
-        return $output;
-    }
+	public function register_settings() {
+		register_setting( 'spw_settings_group', 'spw_settings', array( $this, 'sanitize_settings' ) );
+	}
 
-    public function render_settings_page() {
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            return;
-        }
-        $settings = SPW_Helpers::get_settings();
-        ?>
-        <div class="wrap spw-admin-wrap" dir="rtl">
-            <h1><?php echo esc_html__( 'تنظیمات نبض حراجی', 'flash-sale-pulse-for-woocommerce' ); ?></h1>
-            <form action="options.php" method="post">
-                <?php
-                settings_fields( 'spw_settings_group' );
-                do_settings_sections( 'spw_settings_group' );
-                ?>
-                <h2 class="nav-tab-wrapper">
-                    <a href="#spw-tab-general" class="nav-tab nav-tab-active"><?php _e( 'عمومی', 'flash-sale-pulse-for-woocommerce' ); ?></a>
-                    <a href="#spw-tab-texts" class="nav-tab"><?php _e( 'متن‌ها', 'flash-sale-pulse-for-woocommerce' ); ?></a>
-                    <a href="#spw-tab-shortcodes" class="nav-tab"><?php _e( 'شورت‌کدها', 'flash-sale-pulse-for-woocommerce' ); ?></a>
-                </h2>
+	public function sanitize_settings( $input ) {
+		$output = SPW_Helpers::get_settings();
 
-                <div id="spw-tab-general" class="spw-tab-content">
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row"><?php _e( 'تعداد محصول در هر بار نمایش', 'flash-sale-pulse-for-woocommerce' ); ?></th>
-                            <td><input type="number" name="spw_settings[products_per_page]" value="<?php echo esc_attr( $settings['products_per_page'] ); ?>" class="small-text"></td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><?php _e( 'تعداد پردازش در هر نوبت (Batch)', 'flash-sale-pulse-for-woocommerce' ); ?></th>
-                            <td>
-                                <input type="number" name="spw_settings[cleanup_batch]" value="<?php echo esc_attr( $settings['cleanup_batch'] ); ?>" class="small-text">
-                                <p class="description"><?php _e( 'برای جلوگیری از فشار به سرور در سایت‌های بزرگ.', 'flash-sale-pulse-for-woocommerce' ); ?></p>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <div id="spw-tab-texts" class="spw-tab-content" style="display:none;">
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row"><?php _e( 'عنوان تایمر', 'flash-sale-pulse-for-woocommerce' ); ?></th>
-                            <td><input type="text" name="spw_settings[timer_title]" value="<?php echo esc_attr( $settings['timer_title'] ); ?>" class="regular-text"></td>
-                        </tr>
-                    </table>
-                </div>
+		$output['timer_title']       = isset( $input['timer_title'] ) ? sanitize_text_field( wp_unslash( $input['timer_title'] ) ) : $output['timer_title'];
+		$output['button_text']       = isset( $input['button_text'] ) ? sanitize_text_field( wp_unslash( $input['button_text'] ) ) : $output['button_text'];
+		
+		// اضافه کردن سقف منطقی برای جلوگیری از فشار به سرور
+		$output['products_per_page'] = isset( $input['products_per_page'] ) ? min( 100, max( 1, absint( $input['products_per_page'] ) ) ) : $output['products_per_page'];
+		$output['default_orderby']   = isset( $input['default_orderby'] ) ? sanitize_key( $input['default_orderby'] ) : $output['default_orderby'];
+		$output['hide_oos']          = 'yes';
+		
+		// اضافه کردن سقف منطقی برای batch size
+		$output['cleanup_batch']     = isset( $input['cleanup_batch'] ) ? min( 500, max( 1, absint( $input['cleanup_batch'] ) ) ) : $output['cleanup_batch'];
+		$output['db_version']        = SPW_DB_VERSION;
 
-                <?php submit_button( __( 'ذخیره تغییرات', 'flash-sale-pulse-for-woocommerce' ) ); ?>
-            </form>
-        </div>
-        <?php
-    }
+		if ( ! in_array( $output['default_orderby'], array( 'ending_soon', 'date', 'title' ), true ) ) {
+			$output['default_orderby'] = 'ending_soon';
+		}
 
-    public function add_product_fields() {
-        global $post;
-        $product_id = $post ? $post->ID : 0;
-        $window     = SPW_Helpers::get_product_sale_window( $product_id );
-        $start      = SPW_Helpers::timestamp_to_jalali_datetime( $window['start'] );
-        $end        = SPW_Helpers::timestamp_to_jalali_datetime( $window['end'] );
+		return $output;
+	}
 
-        echo '<div class="options_group spw-product-fields" style="border-top: 1px solid #eee; padding-top: 10px;">';
-        echo '<h4 style="margin-right: 10px;">' . __( 'تنظیمات نبض حراجی (شمسی)', 'flash-sale-pulse-for-woocommerce' ) . '</h4>';
+	public function render_settings_page() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
 
-        woocommerce_wp_text_input( array(
-            'id'          => '_spw_sale_start_jalali',
-            'label'       => __( 'شروع حراجی', 'flash-sale-pulse-for-woocommerce' ),
-            'placeholder' => '1402/10/01 12:00',
-            'value'       => $start,
-            'desc_tip'    => true,
-            'description' => __( 'زمان شروع نمایش تایمر و اعمال قیمت حراجی.', 'flash-sale-pulse-for-woocommerce' ),
-        ) );
+		$settings = SPW_Helpers::get_settings();
+		?>
+		<div class="wrap spw-admin-wrap" dir="rtl">
+			<h1><?php esc_html_e( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ); ?></h1>
 
-        woocommerce_wp_text_input( array(
-            'id'          => '_spw_sale_end_jalali',
-            'label'       => __( 'پایان حراجی', 'flash-sale-pulse-for-woocommerce' ),
-            'placeholder' => '1402/10/05 23:59',
-            'value'       => $end,
-            'desc_tip'    => true,
-            'description' => __( 'پس از این تاریخ، محصول خودکار از لیست حراج خارج می‌شود.', 'flash-sale-pulse-for-woocommerce' ),
-        ) );
-        echo '</div>';
-    }
+			<div class="spw-admin-card">
+				<h2><?php esc_html_e( 'تنظیمات افزونه نبض حراجی برای ووکامرس', 'flash-sale-pulse-for-woocommerce' ); ?></h2>
+				<p><?php esc_html_e( 'در نسخه ۱.۰، افزونه فقط محصولاتی را نمایش می‌دهد که قیمت فروش ویژه ووکامرس، تاریخ شروع، تاریخ پایان معتبر و موجودی فعال داشته باشند.', 'flash-sale-pulse-for-woocommerce' ); ?></p>
+			</div>
 
-    public function save_product_fields( $product ) {
-        $start_raw = isset( $_POST['_spw_sale_start_jalali'] ) ? sanitize_text_field( $_POST['_spw_sale_start_jalali'] ) : '';
-        $end_raw   = isset( $_POST['_spw_sale_end_jalali'] ) ? sanitize_text_field( $_POST['_spw_sale_end_jalali'] ) : '';
+			<form method="post" action="options.php">
+				<?php settings_fields( 'spw_settings_group' ); ?>
 
-        if ( ! empty( $start_raw ) ) {
-            $product->update_meta_data( '_spw_sale_start', SPW_Helpers::jalali_datetime_to_timestamp( $start_raw ) );
-        } else {
-            $product->delete_meta_data( '_spw_sale_start' );
-        }
+				<div class="spw-tabs">
+					<a href="#spw-tab-general" class="spw-tab-link is-active"><?php esc_html_e( 'عمومی', 'flash-sale-pulse-for-woocommerce' ); ?></a>
+					<a href="#spw-tab-texts" class="spw-tab-link"><?php esc_html_e( 'متن‌ها', 'flash-sale-pulse-for-woocommerce' ); ?></a>
+					<a href="#spw-tab-shortcodes" class="spw-tab-link"><?php esc_html_e( 'شورت‌کدها', 'flash-sale-pulse-for-woocommerce' ); ?></a>
+					<a href="#spw-tab-advanced" class="spw-tab-link"><?php esc_html_e( 'پیشرفته', 'flash-sale-pulse-for-woocommerce' ); ?></a>
+				</div>
 
-        if ( ! empty( $end_raw ) ) {
-            $product->update_meta_data( '_spw_sale_end', SPW_Helpers::jalali_datetime_to_timestamp( $end_raw ) );
-        } else {
-            $product->delete_meta_data( '_spw_sale_end' );
-        }
-    }
+				<div id="spw-tab-general" class="spw-tab-content is-active">
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="spw_products_per_page"><?php esc_html_e( 'تعداد محصول در هر بار نمایش', 'flash-sale-pulse-for-woocommerce' ); ?></label></th>
+							<td><input name="spw_settings[products_per_page]" id="spw_products_per_page" type="number" min="1" max="100" class="small-text" value="<?php echo esc_attr( $settings['products_per_page'] ); ?>"></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="spw_default_orderby"><?php esc_html_e( 'ترتیب پیش‌فرض', 'flash-sale-pulse-for-woocommerce' ); ?></label></th>
+							<td>
+								<select name="spw_settings[default_orderby]" id="spw_default_orderby">
+									<option value="ending_soon" <?php selected( $settings['default_orderby'], 'ending_soon' ); ?>><?php esc_html_e( 'نزدیک‌ترین زمان پایان', 'flash-sale-pulse-for-woocommerce' ); ?></option>
+									<option value="date" <?php selected( $settings['default_orderby'], 'date' ); ?>><?php esc_html_e( 'جدیدترین محصولات', 'flash-sale-pulse-for-woocommerce' ); ?></option>
+									<option value="title" <?php selected( $settings['default_orderby'], 'title' ); ?>><?php esc_html_e( 'عنوان محصول', 'flash-sale-pulse-for-woocommerce' ); ?></option>
+								</select>
+								<p class="description"><?php esc_html_e( 'برای افزایش حس فوریت، حالت «نزدیک‌ترین زمان پایان» پیشنهاد می‌شود.', 'flash-sale-pulse-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<div id="spw-tab-texts" class="spw-tab-content">
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="spw_timer_title"><?php esc_html_e( 'عنوان تایمر', 'flash-sale-pulse-for-woocommerce' ); ?></label></th>
+							<td><input name="spw_settings[timer_title]" id="spw_timer_title" type="text" class="regular-text" value="<?php echo esc_attr( $settings['timer_title'] ); ?>"></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="spw_button_text"><?php esc_html_e( 'متن دکمه محصول', 'flash-sale-pulse-for-woocommerce' ); ?></label></th>
+							<td><input name="spw_settings[button_text]" id="spw_button_text" type="text" class="regular-text" value="<?php echo esc_attr( $settings['button_text'] ); ?>"></td>
+						</tr>
+					</table>
+				</div>
+
+				<div id="spw-tab-shortcodes" class="spw-tab-content">
+					<div class="spw-admin-card">
+						<h2><?php esc_html_e( 'شورت‌کدهای نسخه ۱.۰', 'flash-sale-pulse-for-woocommerce' ); ?></h2>
+						<p><code>[sale_pulse_products limit="8" orderby="ending_soon"]</code></p>
+						<p><code>[sale_pulse_timer product_id="123"]</code></p>
+						<p><code>[sale_pulse_block limit="8" category="mobile"]</code></p>
+					</div>
+				</div>
+
+				<div id="spw-tab-advanced" class="spw-tab-content">
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="spw_cleanup_batch"><?php esc_html_e( 'تعداد پردازش پاک‌سازی در هر نوبت', 'flash-sale-pulse-for-woocommerce' ); ?></label></th>
+							<td>
+								<input name="spw_settings[cleanup_batch]" id="spw_cleanup_batch" type="number" min="1" max="500" class="small-text" value="<?php echo esc_attr( $settings['cleanup_batch'] ); ?>">
+								<p class="description"><?php esc_html_e( 'برای فروشگاه‌های بزرگ عدد پایین‌تر فشار کمتری به سرور وارد می‌کند.', 'flash-sale-pulse-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<?php submit_button( __( 'ذخیره تنظیمات', 'flash-sale-pulse-for-woocommerce' ) ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	public function add_product_fields() {
+		global $post;
+
+		$product_id = $post ? $post->ID : 0;
+		$window     = SPW_Helpers::get_product_sale_window( $product_id );
+		$start      = SPW_Helpers::timestamp_to_jalali_datetime( $window['start'] );
+		$end        = SPW_Helpers::timestamp_to_jalali_datetime( $window['end'] );
+
+		echo '<div class="options_group spw-product-fields" dir="rtl">';
+		echo '<p class="form-field"><strong>' . esc_html__( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ) . '</strong></p>';
+
+		// اضافه کردن nonce برای امنیت فرم
+		wp_nonce_field( 'spw_save_product_meta', 'spw_product_meta_nonce' );
+
+		woocommerce_wp_text_input(
+			array(
+				'id'          => '_spw_sale_start_jalali',
+				'label'       => __( 'تاریخ شروع حراجی', 'flash-sale-pulse-for-woocommerce' ),
+				'placeholder' => '1403/01/01 09:00',
+				'value'       => $start,
+				'desc_tip'    => true,
+				'description' => __( 'تاریخ را به فرمت شمسی وارد کنید. نمونه: 1403/01/01 09:00', 'flash-sale-pulse-for-woocommerce' ),
+			)
+		);
+
+		woocommerce_wp_text_input(
+			array(
+				'id'          => '_spw_sale_end_jalali',
+				'label'       => __( 'تاریخ پایان حراجی', 'flash-sale-pulse-for-woocommerce' ),
+				'placeholder' => '1403/01/05 23:59',
+				'value'       => $end,
+				'desc_tip'    => true,
+				'description' => __( 'پس از پایان این زمان، قیمت حراجی و اطلاعات نبض حراجی توسط کران پاک می‌شود.', 'flash-sale-pulse-for-woocommerce' ),
+			)
+		);
+
+		echo '<p class="form-field spw-help-text">' . esc_html__( 'برای نمایش محصول در نبض حراجی، علاوه بر این تاریخ‌ها باید قیمت فروش ویژه ووکامرس نیز تنظیم شده باشد و محصول موجود باشد.', 'flash-sale-pulse-for-woocommerce' ) . '</p>';
+		echo '</div>';
+	}
+
+	public function save_product_fields( $product ) {
+		// بررسی nonce برای امنیت
+		if ( ! isset( $_POST['spw_product_meta_nonce'] ) || ! wp_verify_nonce( $_POST['spw_product_meta_nonce'], 'spw_save_product_meta' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $product->get_id() ) ) {
+			return;
+		}
+
+		$start_raw = isset( $_POST['_spw_sale_start_jalali'] ) ? sanitize_text_field( wp_unslash( $_POST['_spw_sale_start_jalali'] ) ) : '';
+		$end_raw   = isset( $_POST['_spw_sale_end_jalali'] ) ? sanitize_text_field( wp_unslash( $_POST['_spw_sale_end_jalali'] ) ) : '';
+
+		$start = SPW_Helpers::jalali_datetime_to_timestamp( $start_raw );
+		$end   = SPW_Helpers::timestamp_to_jalali_datetime_to_timestamp( $end_raw ); // توجه: این باید با هلپر شما همخوانی داشته باشد
+
+		if ( $start > 0 ) {
+			$product->update_meta_data( '_spw_sale_start', $start );
+		} else {
+			$product->delete_meta_data( '_spw_sale_start' );
+		}
+
+		if ( $end > 0 ) {
+			$product->update_meta_data( '_spw_sale_end', $end );
+		} else {
+			$product->delete_meta_data( '_spw_sale_end' );
+		}
+	}
 }
