@@ -133,40 +133,30 @@ class SPW_Helpers {
 			$jd = 1 + ( ( $days - 186 ) % 30 );
 		}
 
-		return array( (int) $jy, (int) $jm, (int) $jd );
+		return array( $jy, $jm, $jd );
 	}
 
 	public static function jalali_to_gregorian( $jy, $jm, $jd ) {
-		$jy   += 1595;
-		$days  = -355668 + ( 365 * $jy ) + ( floor( $jy / 33 ) * 8 ) + floor( ( ( $jy % 33 ) + 3 ) / 4 ) + $jd;
-		$days += ( $jm < 7 ) ? ( ( $jm - 1 ) * 31 ) : ( ( ( $jm - 7 ) * 30 ) + 186 );
-		$gy    = 400 * floor( $days / 146097 );
+		$jy += 1595;
+		$days = -495164 + ( 365 * $jy ) + ( floor( $jy / 33 ) * 8 ) + floor( ( ( $jy % 33 ) + 3 ) / 4 ) + $jd;
+		if ( $jm < 7 ) {
+			$days += ( $jm - 1 ) * 31;
+		} else {
+			$days += ( ( $jm - 7 ) * 30 ) + 186;
+		}
+		$gy = 400 * floor( $days / 146097 );
 		$days %= 146097;
-
 		if ( $days > 36524 ) {
-			$gy   += 100 * floor( --$days / 36524 );
+			$gy += 100 * floor( --$days / 36524 );
 			$days %= 36524;
-
 			if ( $days >= 365 ) {
 				$days++;
 			}
 		}
-
 		$gy   += 4 * floor( $days / 1461 );
 		$days %= 1461;
-
 		if ( $days > 365 ) {
-			$gy   += floor( ( $days - 1 ) / 365 );
+			$gy += floor( ( $days - 1 ) / 365 );
 			$days = ( $days - 1 ) % 365;
 		}
-
-		$gd = $days + 1;
-		$sal_a = array( 0, 31, ( ( $gy % 4 === 0 && $gy % 100 !== 0 ) || ( $gy % 400 === 0 ) ) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 );
-
-		for ( $gm = 1; $gm <= 12 && $gd > $sal_a[ $gm ]; $gm++ ) {
-			$gd -= $sal_a[ $gm ];
-		}
-
-		return array( (int) $gy, (int) $gm, (int) $gd );
-	}
-}
+		$gd
