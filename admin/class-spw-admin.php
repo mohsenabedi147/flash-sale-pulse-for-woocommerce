@@ -332,7 +332,7 @@ class SPW_Admin {
 	}
 
 	/**
-	 * افزودن فیلدهای تاریخ شمسی به بخش قیمت‌گذاری محصول ووکامرس.
+	 * افزودن فیلدهای تاریخ و ساعت شمسی به صورت جداگانه به بخش محصول.
 	 *
 	 * @return void
 	 */
@@ -342,38 +342,37 @@ class SPW_Admin {
 		$product_id = $post ? absint( $post->ID ) : 0;
 		$window     = SPW_Helpers::get_product_sale_window( $product_id );
 
-		$start_timestamp = isset( $window['start'] ) ? absint( $window['start'] ) : 0;
-		$end_timestamp   = isset( $window['end'] ) ? absint( $window['end'] ) : 0;
+		$start_ts = isset( $window['start'] ) ? absint( $window['start'] ) : 0;
+		$end_ts   = isset( $window['end'] ) ? absint( $window['end'] ) : 0;
 
-		$start = SPW_Helpers::timestamp_to_jalali_datetime( $start_timestamp );
-		$end   = SPW_Helpers::timestamp_to_jalali_datetime( $end_timestamp );
+		$start_jalali = SPW_Helpers::timestamp_to_jalali_datetime( $start_ts );
+		$end_jalali   = SPW_Helpers::timestamp_to_jalali_datetime( $end_ts );
 
-		echo '<div class="options_group spw-product-fields" dir="rtl">';
-		echo '<p class="form-field"><strong>' . esc_html__( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ) . '</strong></p>';
+		$start_parts = $this->split_jalali_datetime( $start_jalali );
+		$end_parts   = $this->split_jalali_datetime( $end_jalali );
+
+		echo '<div class="options_group spw-product-fields spw-sale-box" dir="rtl">';
+		echo '<p class="form-field spw-sale-box-title"><strong>' . esc_html__( 'نبض حراجی', 'flash-sale-pulse-for-woocommerce' ) . '</strong></p>';
 
 		wp_nonce_field( 'spw_save_product_meta', 'spw_product_meta_nonce' );
 
-		woocommerce_wp_text_input(
-			array(
-				'id'          => '_spw_sale_start_jalali',
-				'label'       => __( 'تاریخ شروع حراجی', 'flash-sale-pulse-for-woocommerce' ),
-				'placeholder' => '1403/01/01 09:00',
-				'value'       => $start,
-				'desc_tip'    => true,
-				'description' => __( 'تاریخ را به فرمت شمسی وارد کنید. نمونه: 1403/01/01 09:00', 'flash-sale-pulse-for-woocommerce' ),
-			)
-		);
+		// ردیف شروع حراجی
+		echo '<div class="spw-sale-row">';
+		echo '<label>' . esc_html__( 'تاریخ شروع حراجی', 'flash-sale-pulse-for-woocommerce' ) . '</label>';
+		echo '<div class="spw-sale-inputs">';
+		echo '<input type="text" class="spw-date-input" name="_spw_sale_start_date_jalali" value="' . esc_attr( $start_parts['date'] ) . '" placeholder="1403/01/01" maxlength="10">';
+		echo '<input type="text" class="spw-time-input" name="_spw_sale_start_time_jalali" value="' . esc_attr( $start_parts['time'] ) . '" placeholder="09:00" maxlength="5">';
+		echo '</div>';
+		echo '</div>';
 
-		woocommerce_wp_text_input(
-			array(
-				'id'          => '_spw_sale_end_jalali',
-				'label'       => __( 'تاریخ پایان حراجی', 'flash-sale-pulse-for-woocommerce' ),
-				'placeholder' => '1403/01/05 23:59',
-				'value'       => $end,
-				'desc_tip'    => true,
-				'description' => __( 'پس از پایان این زمان، قیمت حراجی و اطلاعات نبض حراجی توسط کران پاک می‌شود.', 'flash-sale-pulse-for-woocommerce' ),
-			)
-		);
+		// ردیف پایان حراجی
+		echo '<div class="spw-sale-row">';
+		echo '<label>' . esc_html__( 'تاریخ پایان حراجی', 'flash-sale-pulse-for-woocommerce' ) . '</label>';
+		echo '<div class="spw-sale-inputs">';
+		echo '<input type="text" class="spw-date-input" name="_spw_sale_end_date_jalali" value="' . esc_attr( $end_parts['date'] ) . '" placeholder="1403/01/05" maxlength="10">';
+		echo '<input type="text" class="spw-time-input" name="_spw_sale_end_time_jalali" value="' . esc_attr( $end_parts['time'] ) . '" placeholder="23:59" maxlength="5">';
+		echo '</div>';
+		echo '</div>';
 
 		echo '<p class="form-field spw-help-text">';
 		echo esc_html__( 'برای نمایش محصول در نبض حراجی، علاوه بر این تاریخ‌ها باید قیمت فروش ویژه ووکامرس نیز تنظیم شده باشد و محصول موجود باشد.', 'flash-sale-pulse-for-woocommerce' );
@@ -383,10 +382,9 @@ class SPW_Admin {
 	}
 
 	/**
-	 * ذخیره فیلدهای تاریخ شمسی محصول.
+	 * ذخیره فیلدهای تاریخ و ساعت شمسی محصول.
 	 *
 	 * @param WC_Product $product آبجکت محصول ووکامرس.
-	 *
 	 * @return void
 	 */
 	public function save_product_fields( $product ) {
@@ -394,56 +392,76 @@ class SPW_Admin {
 			return;
 		}
 
-		$product_id = $product->get_id();
-
-		if ( ! current_user_can( 'edit_post', $product_id ) ) {
+		if ( ! current_user_can( 'edit_post', $product->get_id() ) ) {
 			return;
 		}
 
-		if (
-			! isset( $_POST['spw_product_meta_nonce'] ) ||
-			! wp_verify_nonce(
-				sanitize_text_field( wp_unslash( $_POST['spw_product_meta_nonce'] ) ),
-				'spw_save_product_meta'
-			)
-		) {
+		if ( ! isset( $_POST['spw_product_meta_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['spw_product_meta_nonce'] ) ), 'spw_save_product_meta' ) ) {
 			return;
 		}
 
-		$start_raw = isset( $_POST['_spw_sale_start_jalali'] )
-			? sanitize_text_field( wp_unslash( $_POST['_spw_sale_start_jalali'] ) )
-			: '';
+		// دریافت و نرمال‌سازی ورودی‌ها
+		$s_date = isset( $_POST['_spw_sale_start_date_jalali'] ) ? $this->normalize_input( $_POST['_spw_sale_start_date_jalali'] ) : '';
+		$s_time = isset( $_POST['_spw_sale_start_time_jalali'] ) ? $this->normalize_input( $_POST['_spw_sale_start_time_jalali'] ) : '00:00';
+		$e_date = isset( $_POST['_spw_sale_end_date_jalali'] ) ? $this->normalize_input( $_POST['_spw_sale_end_date_jalali'] ) : '';
+		$e_time = isset( $_POST['_spw_sale_end_time_jalali'] ) ? $this->normalize_input( $_POST['_spw_sale_end_time_jalali'] ) : '23:59';
 
-		$end_raw = isset( $_POST['_spw_sale_end_jalali'] )
-			? sanitize_text_field( wp_unslash( $_POST['_spw_sale_end_jalali'] ) )
-			: '';
+		$start_raw = ( ! empty( $s_date ) ) ? $s_date . ' ' . $s_time : '';
+		$end_raw   = ( ! empty( $e_date ) ) ? $e_date . ' ' . $e_time : '';
 
 		$start = SPW_Helpers::jalali_datetime_to_timestamp( $start_raw );
 		$end   = SPW_Helpers::jalali_datetime_to_timestamp( $end_raw );
 
-		$start = absint( $start );
-		$end   = absint( $end );
-
 		if ( $start > 0 && $end > 0 && $end <= $start ) {
 			if ( class_exists( 'WC_Admin_Meta_Boxes' ) ) {
-				WC_Admin_Meta_Boxes::add_error(
-					__( 'در نبض حراجی، تاریخ پایان باید بعد از تاریخ شروع باشد.', 'flash-sale-pulse-for-woocommerce' )
-				);
+				WC_Admin_Meta_Boxes::add_error( __( 'در نبض حراجی، تاریخ پایان باید بعد از تاریخ شروع باشد.', 'flash-sale-pulse-for-woocommerce' ) );
 			}
-
 			return;
 		}
 
 		if ( $start > 0 ) {
-			$product->update_meta_data( '_spw_sale_start', $start );
+			$product->update_meta_data( '_spw_sale_start', absint( $start ) );
 		} else {
 			$product->delete_meta_data( '_spw_sale_start' );
 		}
 
 		if ( $end > 0 ) {
-			$product->update_meta_data( '_spw_sale_end', $end );
+			$product->update_meta_data( '_spw_sale_end', absint( $end ) );
 		} else {
 			$product->delete_meta_data( '_spw_sale_end' );
 		}
+	}
+
+	/**
+	 * جدا کردن تاریخ و ساعت از رشته تاریخ جلالی.
+	 *
+	 * @param string $datetime رشته کامل.
+	 * @return array
+	 */
+	private function split_jalali_datetime( $datetime ) {
+		$datetime = trim( (string) $datetime );
+		if ( empty( $datetime ) ) {
+			return array( 'date' => '', 'time' => '' );
+		}
+		$parts = preg_split( '/\s+/', $datetime );
+		return array(
+			'date' => isset( $parts[0] ) ? $parts[0] : '',
+			'time' => isset( $parts[1] ) ? $parts[1] : '',
+		);
+	}
+
+	/**
+	 * نرمال‌سازی اعداد فارسی/عربی به انگلیسی.
+	 *
+	 * @param string $value مقدار ورودی.
+	 * @return string
+	 */
+	private function normalize_input( $value ) {
+		$value = sanitize_text_field( wp_unslash( $value ) );
+		$persian = array( '۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹' );
+		$arabic  = array( '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩' );
+		$latin   = array( '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' );
+		$value = str_replace( $persian, $latin, $value );
+		return str_replace( $arabic, $latin, $value );
 	}
 }
