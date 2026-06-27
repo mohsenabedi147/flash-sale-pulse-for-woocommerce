@@ -149,3 +149,43 @@
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
+/* Badge روی تصویر محصول */
+.spw-product-thumb {
+    position: relative;
+}
+.spw-discount-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #d92d20;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* باکس ویژه صفحه‌ی تک‌محصول */
+.spw-single-timer-box {
+    margin: 20px 0;
+    padding: 15px;
+    border: 2px solid #ffecec;
+    border-radius: 12px;
+    background: #fff;
+}
+.spw-promo-badge {
+    background: #d92d20;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+/* تنظیمات تایمر در باکس ویژه */
+.spw-single-timer-box .spw-timer-items {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
